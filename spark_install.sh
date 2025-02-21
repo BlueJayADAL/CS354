@@ -18,22 +18,38 @@ rm scala-2.13.16.deb
 pip3 install --upgrade jupyter
 pip3 install --upgrade py4j
 pip3 install --upgrade findspark
+pip3 install --upgrade jupyter_server
+pip3 install --upgrade jupyterlab
 
-# Set your desired plaintext password here.
+
+# Set up Jupyter Notebook password
 echo -e "\n***************************************************************"
 echo "Setting up Jupyter Notebook password..."
 echo "***************************************************************"
 CONFIG_FILE="$HOME/.jupyter/jupyter_notebook_config.py"
-# Create the config file if it doesn't exist.
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "Generating Jupyter Notebook configuration file..."
-    jupyter notebook --generate-config
+
+# Prompt for password and generate hash
+echo "Please enter your desired Jupyter password:"
+read -s JUPYTER_PLAIN
+echo
+echo "Please confirm your password:"
+read -s JUPYTER_CONFIRM
+echo
+
+if [ "$JUPYTER_PLAIN" != "$JUPYTER_CONFIRM" ]; then
+    echo "Passwords do not match! Exiting..."
+    exit 1
 fi
 
-# Configure Jupyter Notebook Server
-echo -e "\n***************************************************************"
-echo "Configuring Jupyter Notebook Server..."
-echo "***************************************************************"
+# Generate password hash
+JUPYTER_HASH=$(python3 -c "from jupyter_server.auth import passwd; print(passwd('$JUPYTER_PLAIN'))")
+
+# Create the config file if it doesn't exist
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Generating Jupyter Notebook configuration file..."
+    /home/jj/.local/bin/jupyter notebook --generate-config
+fi
+
 # Remove any existing lines for these settings (optional cleanup)
 sed -i '/c.NotebookApp.ip/d' "$CONFIG_FILE"
 sed -i '/c.NotebookApp.open_browser/d' "$CONFIG_FILE"
@@ -41,14 +57,13 @@ sed -i '/c.NotebookApp.port/d' "$CONFIG_FILE"
 sed -i '/c.NotebookApp.token/d' "$CONFIG_FILE"
 sed -i '/c.NotebookApp.password/d' "$CONFIG_FILE"
 
-
-# Append the required configuration settings.
+# Append the required configuration settings with hashed password
 cat <<EOL >> "$CONFIG_FILE"
 c.NotebookApp.ip = '0.0.0.0'
 c.NotebookApp.open_browser = False
 c.NotebookApp.port = 8888
 c.NotebookApp.token = ''
-c.NotebookApp.password = ''
+c.NotebookApp.password = '$JUPYTER_HASH'
 EOL
 
 # Create a systemd service file for Jupyter Notebook
@@ -65,7 +80,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(which jupyter) lab --config=$CONFIG_FILE
+ExecStart=/home/jj/.local/bin/jupyter lab --config=$CONFIG_FILE
 User=$(whoami)
 Group=$(whoami)
 WorkingDirectory=$HOME

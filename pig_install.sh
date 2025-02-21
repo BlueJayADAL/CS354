@@ -30,3 +30,5 @@ sudo -u hadoop bash -c "source /home/hadoop/.bashrc"
 source /home/jj/.bashrc
 
 echo -e "\nPig installation and setup completed successfully!"
+echo -e "\nRun 'source ~/.bashrc' to update your current shell with Pig environment variables."
+echo -e "You can then run Pig by typing 'pig -x local' in the terminal.\n"
